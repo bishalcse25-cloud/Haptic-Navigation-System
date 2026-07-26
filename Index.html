@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+<title>HaptiNav – Obstacle Detection for Visually Impaired</title>
+<meta name="description" content="Real-time obstacle detection with voice and haptic feedback for visually impaired users"/>
+<link rel="stylesheet" href="style.css"/>
+</head>
+<body>
+
+<!-- ═══════════════════════════════
+     WELCOME SCREEN
+═══════════════════════════════ -->
+<div class="screen active" id="welcome" role="main" aria-label="Welcome to HaptiNav">
+  <div class="logo-ring" aria-hidden="true">
+    <div class="logo-icon">🔊</div>
+  </div>
+
+  <h1>Hapti<span>Nav</span></h1>
+  <p class="tagline">Obstacle detection for everyone</p>
+
+  <div class="feature-pills" aria-label="Features">
+    <div class="pill" role="listitem">📷 Camera</div>
+    <div class="pill" role="listitem">🔊 Voice</div>
+    <div class="pill" role="listitem">📳 Vibration</div>
+    <div class="pill" role="listitem">⚡ Real-time</div>
+  </div>
+
+  <button class="start-btn" onclick="startApp()"
+          aria-label="Start HaptiNav obstacle detection">
+    ▶ START SCANNING
+  </button>
+
+  <p class="perm-note">
+    Will ask for camera access.<br/>
+    No data is stored or sent anywhere.<br/>
+    Works entirely on your device.
+  </p>
+</div>
+
+<!-- ═══════════════════════════════
+     MAIN APP SCREEN
+═══════════════════════════════ -->
+<div class="screen" id="app" role="main" aria-label="HaptiNav active scanning">
+
+  <!-- Status bar -->
+  <header id="statusbar" role="banner">
+    <div class="app-wordmark" aria-label="HaptiNav">HaptiNav</div>
+    <div class="status-pills" role="status" aria-live="polite" aria-label="App status">
+      <span class="badge off" id="badge-cam">CAM</span>
+      <span class="badge off" id="badge-voice">VOICE</span>
+      <span class="badge off" id="badge-haptic">HAPTIC</span>
+      <span class="badge on"  id="badge-status">READY</span>
+    </div>
+  </header>
+
+  <!-- Camera view -->
+  <section id="cam-section" aria-label="Camera view with obstacle detection overlay">
+
+    <video id="video" autoplay muted playsinline
+           aria-label="Live camera feed" aria-hidden="true"></video>
+
+    <!-- Zone grid overlay -->
+    <canvas id="grid-canvas" aria-hidden="true"></canvas>
+
+    <!-- Detection overlay -->
+    <canvas id="overlay-canvas" aria-hidden="true"></canvas>
+
+    <!-- Scan line -->
+    <div id="scan-line" aria-hidden="true"></div>
+
+    <!-- Small zone boxes top-left -->
+    <div id="zone-display" role="img" aria-label="Haptic zone map">
+      <div class="zc" id="z-L"  aria-label="left zone">L</div>
+      <div class="zc" id="z-C"  aria-label="center zone">C</div>
+      <div class="zc" id="z-R"  aria-label="right zone">R</div>
+      <div class="zc" id="z-FL" aria-label="front-left zone">FL</div>
+      <div class="zc" id="z-F"  aria-label="front zone">F</div>
+      <div class="zc" id="z-FR" aria-label="front-right zone">FR</div>
+    </div>
+
+    <!-- Direction arrow top-right -->
+    <div id="direction-box" aria-live="polite" aria-label="Clear direction indicator">
+      <div id="big-dir-arrow" aria-hidden="true">✓</div>
+      <div id="dir-label">CLEAR</div>
+    </div>
+
+    <!-- Alert banner -->
+    <div id="alert-banner" role="alert" aria-live="assertive" aria-atomic="true">
+      Path is clear
+    </div>
+
+    <!-- Last alert log -->
+    <div id="last-alert-box" aria-live="polite">
+      <div id="last-alert-dot"></div>
+      <span id="last-alert-text">Scanning started</span>
+    </div>
+
+    <!-- No camera message -->
+    <div id="no-cam" role="alert" aria-live="assertive">
+      <div class="nc-ico" aria-hidden="true">📷</div>
+      <p>Camera access needed.<br/>Please allow camera permission and try again.</p>
+      <button onclick="startCamera()" aria-label="Retry camera access">Retry Camera</button>
+    </div>
+
+  </section>
+
+  <!-- Controls panel -->
+  <section id="controls" aria-label="Navigation controls">
+
+    <div class="btn-grid" role="toolbar" aria-label="Main controls">
+      <!-- Voice toggle -->
+      <button class="big-btn green-btn" id="btn-voice"
+              onclick="toggleVoice()" aria-pressed="false"
+              aria-label="Toggle voice guidance">
+        <span class="btn-ico" aria-hidden="true">🔊</span>
+        <span>Voice</span>
+      </button>
+
+      <!-- Haptic toggle -->
+      <button class="big-btn green-btn" id="btn-haptic"
+              onclick="toggleHaptic()" aria-pressed="false"
+              aria-label="Toggle haptic vibration feedback">
+        <span class="btn-ico" aria-hidden="true">📳</span>
+        <span>Haptic</span>
+      </button>
+
+      <!-- Scan toggle -->
+      <button class="big-btn red-btn active" id="btn-scan"
+              onclick="toggleScan()" aria-pressed="true"
+              aria-label="Stop or start obstacle scanning">
+        <span class="btn-ico" aria-hidden="true" id="scan-ico">⏹</span>
+        <span id="scan-lbl">Stop Scan</span>
+      </button>
+
+      <!-- Announce now -->
+      <button class="big-btn yellow-btn" id="btn-announce"
+              onclick="announceNow()" aria-label="Speak current surroundings now">
+        <span class="btn-ico" aria-hidden="true">📢</span>
+        <span>Tell Me</span>
+      </button>
+    </div>
+
+    <!-- Sensitivity selector -->
+    <div class="sens-row" role="group" aria-label="Detection sensitivity">
+      <div class="sens-label">SENS</div>
+      <div class="sens-track">
+        <div class="sens-seg sel" data-level="1"
+             onclick="setSensitivity(1)" role="radio" aria-checked="true"
+             tabindex="0" aria-label="Low sensitivity">LOW</div>
+        <div class="sens-seg"     data-level="2"
+             onclick="setSensitivity(2)" role="radio" aria-checked="false"
+             tabindex="0" aria-label="Medium sensitivity">MED</div>
+        <div class="sens-seg"     data-level="3"
+             onclick="setSensitivity(3)" role="radio" aria-checked="false"
+             tabindex="0" aria-label="High sensitivity">HIGH</div>
+      </div>
+    </div>
+
+  </section>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
